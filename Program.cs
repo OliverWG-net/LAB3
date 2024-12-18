@@ -1,15 +1,16 @@
-﻿namespace LAB3
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace LAB3
 {
-    internal class Program
+    class TestClass
     {
         static void Main(string[] args)
         {
-            Menu menu = new Menu();
-            bool running = true;
-            while (running)
-            {
-                menu.meny();
-            }
+            
         }
     }
 }

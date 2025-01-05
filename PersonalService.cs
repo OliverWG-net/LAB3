@@ -1,6 +1,9 @@
-﻿using Microsoft.Identity.Client;
+﻿using LAB3.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,9 +14,9 @@ namespace LAB3
     {
         private readonly LAB2Context context;
 
-        public PersonalService(LAB2Context _context)
+        public PersonalService()
         {
-            _context = context;
+            context = new LAB2Context();
         }
         public void Personelmenu()
         {
@@ -122,60 +125,114 @@ namespace LAB3
 
         public void AddPersonell()
         {
-            bool okPnamn = false, okPersonnr = false, okposition = false;
+            bool Godkänt = false;
             do
             {
-                Console.WriteLine("Vänligen skriv in förnamn på den nya anställda");
-                string Fnamn = Console.ReadLine();
-                Console.WriteLine("Vänligen skriv in den anställdas efternamn");
-                string Lnamn = Console.ReadLine();
+                Menu menu = new Menu();
+                using var transaction = context.Database.BeginTransaction();
 
-                okPnamn = !Fnamn.Any(Char.IsDigit) && !Lnamn.Any(Char.IsDigit);
-                if (!okPnamn)
-                {
-                    Console.WriteLine("Ogiltig inmatning. Förnamn och efternamn får inte inehålla siffror.");
-                    continue;
-                }
-                Console.WriteLine("Vänligen skriv in den anställdas personnummer (10 siffror) ");
-                string personnummer = Console.ReadLine();
-                okPersonnr = personnummer.Length == 10 && personnummer.All(Char.IsDigit);
-                if (!okPersonnr)
-                {
-                    Console.WriteLine("Ogilltig inamtning personnummer måste vara 10 siffror.");
-                    continue;
-                }
-
-                string[] jobb = { "Lärare", "Administration", "Vaktmästare", "Väktare" };
-                Console.WriteLine($"Vänligen välj vilken position den nya anställda ha.");
-                Console.WriteLine(string.Join("\n", jobb));
-                string postition = Console.ReadLine();
-                okposition = jobb.Contains(postition, StringComparer.OrdinalIgnoreCase);
-                if (!okposition)
-                {
-                    Console.WriteLine("Ogilltig position. vänligen försök igen.");
-                    continue;
-                }
-
-                var nypersonal = new Personal
-                {
-                    Fnamn = Fnamn,
-                    Lnamn = Lnamn,
-                    Personnummer = personnummer,
-                    Position = postition
-                };
                 try
                 {
+                    Console.WriteLine("Vänligen skriv in förnamn på den nya anställda");
+                    string Fnamn = Console.ReadLine();
+                    Console.WriteLine("Vänligen skriv in den anställdas efternamn");
+                    string Lnamn = Console.ReadLine();
+
+                    Console.WriteLine("Vänligen skriv in den anställdas personnummer (10 siffror) ");
+                    string personnummer = Console.ReadLine();
+
+                    string[] jobb = { "Lärare", "Administration", "Vaktmästare", "Väktare" };
+                    Console.WriteLine($"Vänligen välj vilken position den nya anställda ha.");
+                    Console.WriteLine(string.Join("\n", jobb));
+                    string position = Console.ReadLine();
+                    string Avdelning = "okänd";
+                    int Lön = 0;
+                    DateTime idag = DateTime.Today;
+                    DateOnly Anställningsdatum = DateOnly.FromDateTime(idag);
+
+                    ValidateInput(Fnamn, Lnamn, personnummer, position, Avdelning, Lön, Anställningsdatum);
+                    if (position == "Lärare" || position == "Rektor")
+                    {
+                        Avdelning = "Skolverket";
+                        if (position == "Rektor")
+                        {
+                            Lön = 34000;
+                        }
+                        else if (position == "Lärare")
+                        {
+                            Lön = 24000;
+                        }
+                    }
+                    else if (position == "Väktare")
+                    {
+                        Avdelning = "Säkerhet";
+                    }
+                    else if (position == "Administration")
+                    {
+                        Avdelning = "Sekretess";
+                    }
+                    var nypersonal = new Personal
+                    {
+                        Fnamn = Fnamn,
+                        Lnamn = Lnamn,
+                        Personnummer = personnummer,
+                        Position = position,
+                        Avdelning = Avdelning,
+                        Lön = Lön,
+                        Anställningsdatum = Anställningsdatum
+
+
+
+                    };
                     context.Personals.Add(nypersonal);
                     context.SaveChanges();
-                    Console.WriteLine("Ny personal har laggt tills i systemet");
+                    transaction.Commit();
+                    Console.WriteLine("Ny personal har lackts till");
+                    Godkänt = true;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Ett fel inträffade {ex.Message}");
+                    transaction.Rollback();
+                    Console.WriteLine($"Transaction rolled back. Error: {ex.Message}");
+
+                    Console.WriteLine("Vill du försöka igen? (y/n)");
+                    var igen = Console.ReadLine();
+                    if (igen?.ToLower() != "y")
+                    {
+                        menu.meny();
+                    }
                 }
-                break;
             }
-            while (!okPnamn || !okPersonnr || !okposition);
+            while (!Godkänt);
+        }
+        public void ValidateInput(string Fnamn, string Lnamn, string personnummer,string position, string Avdelning, int Lön, DateOnly Anställningsdatum)
+        {
+            bool okPnamn = false, okPersonnr = false, okposition = false;
+
+            okPnamn = !Fnamn.Any(Char.IsDigit) && !Lnamn.Any(Char.IsDigit);
+            if (string.IsNullOrWhiteSpace(Fnamn) || string.IsNullOrWhiteSpace(Lnamn))
+            {
+                throw new Exception("Namnet kan inte vara tomt eller inehålla mellanrum");
+            }
+            if (!okPnamn)
+            {
+                throw new Exception("Namn och efternamn får inte inehålla siffror");
+            }
+            okPersonnr = personnummer.Length == 10 && personnummer.All(Char.IsDigit);
+            if (!okPersonnr)
+            {
+                throw new Exception("Personnummer måste vara 10 siffror");
+            }
+            string[] jobb = { "Lärare", "Administration", "Vaktmästare", "Väktare" };
+            okposition = jobb.Contains(position, StringComparer.OrdinalIgnoreCase);
+            if (!okposition)
+            {
+                throw new Exception("Ogiltig position vänligen försök igen.");
+            }
+            if (context.Personals.Any(p => p.Personnummer == personnummer))
+            {
+                throw new Exception("Personall med detta personnummer finns redan.");
+            }
         }
     }
 }

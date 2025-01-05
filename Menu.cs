@@ -12,9 +12,9 @@ namespace LAB3
     internal class Menu
     {
         private readonly LAB2Context context;
-        public Menu(LAB2Context _context)
+        public Menu()
         {
-            _context = context;
+            context = new LAB2Context();
         }
         public void meny()
         {
@@ -24,8 +24,8 @@ namespace LAB3
                 .UseSqlServer(connection)
                 .Options))
             {
-                StudentService studentService = new StudentService(context);
-                PersonalService personalService = new PersonalService(context);
+                StudentService studentService = new StudentService();
+                PersonalService personalService = new PersonalService();
                 Console.WriteLine("══════════════════════════════════════════════════════════════");
                 Console.WriteLine("Vänligen gör ett val från menyn nedan");
                 Console.WriteLine("(1) Hämta Personal");

@@ -1,18 +1,20 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace LAB3
 {
     internal class StudentService
     {
         private readonly LAB2Context context;
-        public StudentService(LAB2Context _context)
+        public StudentService()
         {
-            context = _context;
+            context = new LAB2Context();
         }
         public void Studentmeny()
         {
@@ -229,58 +231,77 @@ namespace LAB3
 
         public void AddStudent()
         {
-            bool oknamn = false, okpersonnr = false, okklassid = false;
+            bool godkänt = false;
             do
             {
-                Console.WriteLine("Vänligen skriv in Studentens förnamn");
-                string Fnamn = Console.ReadLine();
-                Console.WriteLine("Vänligen skriv in studentens efternamn");
-                string Lnamn = Console.ReadLine();
+                Menu menu = new Menu();
+                using var transaction = context.Database.BeginTransaction();
 
-                oknamn = !Fnamn.Any(Char.IsDigit) && !Lnamn.Any(Char.IsDigit);
-                if (!oknamn)
-                {
-                    Console.WriteLine("Ogiltig inmatning. Förnamn och efternamn får inte inehålla siffror.");
-                    continue;
-                }
-                Console.WriteLine("Vänligen skriv in studentens personnummer (10 siffror) ");
-                string personnummer = Console.ReadLine();
-                okpersonnr = personnummer.Length == 10 && personnummer.All(Char.IsDigit);
-                if (!okpersonnr)
-                {
-                    Console.WriteLine("Ogilltig inamtning personnummer måste vara 10 siffror.");
-                    continue;
-                }
-
-                Console.WriteLine($"Vänligen skriv in Klass ID till studenten\nKlass ID 1: NET24\nKlass ID 2: NET23\nKlass ID 3: NET22 ");
-                string klassidinput = Console.ReadLine();
-                okklassid = int.TryParse(klassidinput, out int klassid) && klassid >= 1 && klassid <= 3;
-                if (!okklassid)
-                {
-                    Console.WriteLine("Ogilltigt klass ID. Ange ett nr mellan 1 och 3.");
-                    continue;
-                }
-
-                var nystudent = new Student
-                {
-                    FirstName = Fnamn,
-                    LastName = Lnamn,
-                    Personnummer = personnummer,
-                    FkKlassId = klassid
-                };
                 try
                 {
+
+                    Console.WriteLine("Vänligen skriv in Studentens förnamn");
+                    string Fnamn = Console.ReadLine();
+                    Console.WriteLine("Vänligen skriv in studentens efternamn");
+                    string Lnamn = Console.ReadLine();
+
+
+                    Console.WriteLine("Vänligen skriv in studentens personnummer (10 siffror) ");
+                    string personnummer = Console.ReadLine();
+
+
+                    Console.WriteLine($"Vänligen skriv in Klass ID till studenten\nKlass ID 1: NET24\nKlass ID 2: NET23\nKlass ID 3: NET22 ");
+                    string FkKlassId = Console.ReadLine();
+                    int.TryParse(FkKlassId, out int FkklassIds);
+
+                    ValidateStudent(Fnamn, Lnamn, personnummer, FkklassIds);
+                    var nystudent = new Student
+                    {
+                        FirstName = Fnamn,
+                        LastName = Lnamn,
+                        Personnummer = personnummer,
+                        FkKlassId = FkklassIds
+                    };
+
                     context.Students.Add(nystudent);
                     context.SaveChanges();
+                    transaction.Commit();
                     Console.WriteLine("Student har laggt tills i systemet");
+                    godkänt = true;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Ett fel inträffade {ex.Message}");
+                    transaction.Rollback();
+                    Console.WriteLine($"Transaction rolled back. Error: {ex.Message}");
+
+                    Console.WriteLine("Vill du försöka igen? (y/n)");
+                    var igen = Console.ReadLine();
+                    if (igen?.ToLower() != "y")
+                    {
+                        menu.meny();
+                    }
                 }
-                break;
             }
-            while (!oknamn || !okpersonnr || !okklassid);
+            while (!godkänt);
+        }
+        public void ValidateStudent(string FirstName, string LastName, string Personnummer, int FkKlassIds)
+        {
+            bool oknamn = false, okpersonnr = false, okklassid = false;
+            oknamn = !FirstName.Any(Char.IsDigit) && !LastName.Any(Char.IsDigit);
+            if (!oknamn)
+            {
+                throw new Exception("Ogiltig inmatning. Förnamn och efternamn får inte inehålla siffror.");
+            }
+            okpersonnr = Personnummer.Length == 10 && Personnummer.All(Char.IsDigit);
+            if (!okpersonnr)
+            {
+                throw new Exception("Ogilltig inamtning personnummer måste vara 10 siffror.");
+            }
+            okklassid = FkKlassIds >= 1 && FkKlassIds <= 3;
+            if (!okklassid)
+            {
+                throw new Exception("Ogilltigt klass ID. Ange ett nr mellan 1 och 3.");
+            }
         }
     }
 }
